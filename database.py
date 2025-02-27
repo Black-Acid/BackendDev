@@ -8,5 +8,5 @@ DB_URL = "sqlite:///./mydatabase.db"
 
 engine = sql.create_engine(DB_URL, connect_args={"check_same_thread": False})
 
-sessionLocal = orm.sessionmaker(bind=engine)
+sessionLocal = orm.sessionmaker(bind=engine, autoflush=False, autocommit=False)
 

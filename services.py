@@ -1,5 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase
-from database import engine
+from database import engine, sessionLocal
 
 class Base(DeclarativeBase):
     pass
@@ -7,3 +7,12 @@ class Base(DeclarativeBase):
 
 def create_db():
     Base.metadata.create_all(engine)
+    
+
+def get_db():
+    db = sessionLocal()
+    
+    try:
+        yield db
+    finally:
+        db.close()
