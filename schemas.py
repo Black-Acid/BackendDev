@@ -5,5 +5,5 @@ class UserRequest(pydantic.BaseModel):
     password: str
     
 class UserResponse(UserRequest):
-    id = int
+    id : int
     balance: int 
