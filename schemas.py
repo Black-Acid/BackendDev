@@ -1,9 +1,23 @@
 import pydantic
+from pydantic import ConfigDict
 
-class UserRequest(pydantic.BaseModel):
-    username: str
-    password: str
+
+class UserBase(pydantic.BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     
-class UserResponse(UserRequest):
+    username: str
+
+
+
+class UserRequest(UserBase):
+    password: str
+
+    class Config:
+        from_attributes = True
+    
+class UserResponse(UserBase):
     id : int
     balance: int 
+    
+    class Config:
+        from_attributes = True

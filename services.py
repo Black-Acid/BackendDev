@@ -3,9 +3,9 @@ import schemas as sma
 from sqlalchemy import orm
 import models
 import passlib.hash as hash
+import jwt
 
-
-
+JWT_SECRET = "nsand329324nrlksndlak;asjdoiqw2"
 
 def create_db():
     Base.metadata.create_all(engine)
@@ -35,4 +35,11 @@ async def create_user(user: sma.UserRequest, db: orm.Session):
     db.refresh(new_user)
     return new_user
 
-# You have a git push to do before you can continue
+
+async def create_token(user: models.UserModel):
+    user_schema = sma.UserResponse.model_validate(user)
+    user_dict = user_schema.model_dump()
+    
+    token = jwt.encode(user_dict, JWT_SECRET)
+    
+    return dict(access_token=token, token_type="bearer")

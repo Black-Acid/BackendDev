@@ -16,4 +16,9 @@ async def register_user(user: sma.UserRequest, db: orm.Session = fastapi.Depends
     except:
         raise fastapi.HTTPException(status_code=400, detail="You made a bad request")
     
-    return creating_user
+    print(creating_user)
+    
+    return await sv.create_token(creating_user)
+    
+
+
