@@ -34,3 +34,5 @@ async def create_user(user: sma.UserRequest, db: orm.Session):
     db.commit()
     db.refresh(new_user)
     return new_user
+
+# You have a git push to do before you can continue

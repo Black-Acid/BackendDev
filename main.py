@@ -11,6 +11,9 @@ async def register_user(user: sma.UserRequest, db: orm.Session = fastapi.Depends
     checked_user = await sv.get_user(user, db)
     if checked_user:
         raise fastapi.HTTPException(status_code=400, detail="A User already exists with that username")
-    creating_user = await sv.create_user(user, db)
+    try:
+        creating_user = await sv.create_user(user, db)
+    except:
+        raise fastapi.HTTPException(status_code=400, detail="You made a bad request")
     
     return creating_user
