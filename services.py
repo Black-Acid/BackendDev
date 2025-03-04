@@ -6,6 +6,9 @@ import passlib.hash as hash
 import jwt
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, security, Depends
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 JWT_SECRET = "nsand329324nrlksndlak;asjdoiqw2"
 oauth2schema = security.OAuth2PasswordBearer("/api/login")
@@ -28,7 +31,7 @@ async def get_user(user: sma.UserRequest, db: orm.Session):
 
 
 async def create_user(user: sma.UserRequest, db: orm.Session):
-    hash_password = hash.bcrypt.hash(user.password)
+    hash_password = pwd_context.hash(user.password)
     try:
         
         new_user = models.UserModel(
@@ -67,9 +70,12 @@ async def login(identifier: str, password: str, db: orm.Session):
 
 
 async def get_current_user(db: orm.Session = Depends(get_db), token: str = Depends(oauth2schema)):
+    print(f"Received token: {token}")
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        user = db.query(models.UserModel).get(id=payload["id"])
+        user = db.query(models.UserModel).get(payload["id"])
+        print(f"decoded payload: {payload}")
+        print(f"User {user}")
     except:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
