@@ -2,7 +2,6 @@ from database import engine, sessionLocal, Base
 import schemas as sma
 from sqlalchemy import orm
 import models
-import passlib.hash as hash
 import jwt
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, security, Depends
@@ -17,6 +16,7 @@ def create_db():
     Base.metadata.create_all(engine)
     
 create_db()
+
 def get_db():
     db = sessionLocal()
     
