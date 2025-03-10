@@ -1,11 +1,13 @@
 from database import engine, sessionLocal, Base
-import schemas as sma
+
 from sqlalchemy import orm
-import models
-import jwt
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, security, Depends
 from passlib.context import CryptContext
+
+import schemas as sma
+import models
+import jwt
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -15,7 +17,7 @@ oauth2schema = security.OAuth2PasswordBearer("/api/login")
 def create_db():
     Base.metadata.create_all(engine)
     
-create_db()
+
 
 def get_db():
     db = sessionLocal()
@@ -33,7 +35,6 @@ async def get_user(user: sma.UserRequest, db: orm.Session):
 async def create_user(user: sma.UserRequest, db: orm.Session):
     hash_password = pwd_context.hash(user.password)
     try:
-        
         new_user = models.UserModel(
             username=user.username,
             hashed_password=hash_password
@@ -43,7 +44,7 @@ async def create_user(user: sma.UserRequest, db: orm.Session):
         db.refresh(new_user)
     except SQLAlchemyError as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Couldn't save the data due to {e}")
+        raise HTTPException(status_code=500, detail=f"Couldn't save the data due to {e._message}")
         
     return new_user
 
@@ -51,6 +52,9 @@ async def create_user(user: sma.UserRequest, db: orm.Session):
 async def create_token(user: models.UserModel):
     user_schema = sma.UserResponse.model_validate(user)
     user_dict = user_schema.model_dump()
+    
+    # if the token is created with the useruser model then I think it will be wise 
+    # to remove the balance since the balance can change frequently
     
     token = jwt.encode(user_dict, JWT_SECRET)
     
@@ -70,14 +74,30 @@ async def login(identifier: str, password: str, db: orm.Session):
 
 
 async def get_current_user(db: orm.Session = Depends(get_db), token: str = Depends(oauth2schema)):
-    print(f"Received token: {token}")
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         user = db.query(models.UserModel).get(payload["id"])
-        print(f"decoded payload: {payload}")
-        print(f"User {user}")
-    except:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid credentials{e._message}")
     
     return sma.UserResponse.model_validate(user)
     
+    
+
+async def save_queries(
+    conversation: sma.UserQueryResponse, 
+    db: orm.Session,
+    current_user : int
+):
+    try: 
+        collected_data = models.UserMessages(
+            user_id = current_user,
+            enquiry = conversation.message,
+            response = conversation.response
+        )
+        db.add(collected_data)
+        db.commit()
+        db.refresh(collected_data)
+    except SQLAlchemyError as exception:
+        db.rollback()
+        raise HTTPException(status_code=401, detail=f"Data could not saved due to {exception._message}")

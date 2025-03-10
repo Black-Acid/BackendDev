@@ -25,3 +25,8 @@ class UserResponse(UserBase):
 
 class UserQuery(pydantic.BaseModel):
     message: str
+    
+    
+    
+class UserQueryResponse(UserQuery):
+    response : str
