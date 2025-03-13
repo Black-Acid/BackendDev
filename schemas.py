@@ -30,3 +30,10 @@ class UserQuery(pydantic.BaseModel):
     
 class UserQueryResponse(UserQuery):
     response : str
+    
+class RabbitMQPush(pydantic.BaseModel):
+    id: int
+    message: str
+    
+class RabbitMQPull(RabbitMQPush):
+    response: str

@@ -8,6 +8,12 @@ from passlib.context import CryptContext
 import schemas as sma
 import models
 import jwt
+import pika
+import asyncio
+
+
+RABBITMQ_HOST = "localhost"
+QUEUE_NAME = "user_messages"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -101,3 +107,48 @@ async def save_queries(
     except SQLAlchemyError as exception:
         db.rollback()
         raise HTTPException(status_code=401, detail=f"Data could not saved due to {exception._message}")
+    
+
+def push_to_rabbitmq():
+
+
+    # Establish a connection to rabbitMq
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+    channel = connection.channel()
+
+    channel.queue_declare(queue=QUEUE_NAME)
+
+    message = "I'm testing this guy out"
+    channel.basic_publish(exchange="", routing_key=QUEUE_NAME, body=message)
+    
+    print("message sent")
+    
+    connection.close()
+    
+    
+push_to_rabbitmq()
+
+def callback(ch, method, properties, body):
+    print(f" [✔] Received: {body.decode()}")
+    
+    # Simulate processing time
+    import time
+    time.sleep(1)
+    
+
+    # Send acknowledgment
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+    print(" [✔] Message Acknowledged")
+
+
+
+connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+channel = connection.channel()
+
+# ✅ Declare queue to avoid errors
+channel.queue_declare(queue=QUEUE_NAME)
+# Start consuming messages
+channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback)
+
+print(" [*] Waiting for messages. To exit press CTRL+C")
+channel.start_consuming()
