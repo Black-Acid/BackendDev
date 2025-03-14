@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException, security
 import schemas as sma
 from sqlalchemy import orm 
 import services as sv
-from groq import Groq
+
 import os
 from dotenv import load_dotenv
 import redis 
@@ -13,9 +13,7 @@ load_dotenv()
 
 redisClient = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY"),
-)
+
 
 
 app = FastAPI()
@@ -63,27 +61,15 @@ async def query(
         print("I got it from cache")
         return cache_response
     
-    else:
-        # fetch the response from groq ai and save it into redis and display it
-        print("Naaa I got it from groq directly")
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": data.message
-                }
-            ],
-            model = "llama-3.3-70b-versatile",
-            stop=None,
-            stream=False
-        )
+    # else:
+    #     # fetch the response from groq ai and save it into redis and display it
+    #     print("Naaa I got it from groq directly")
         
-        groq_response = chat_completion.choices[0].message.content
         
-        #Convert the recieved data to an instance of the UserQueryResponse Schema
-        queryResponse = sma.UserQueryResponse(message=data.message, response=groq_response)
-        await sv.save_queries(queryResponse, db, user.id)
+    #     #Convert the recieved data to an instance of the UserQueryResponse Schema
+    #     queryResponse = sma.UserQueryResponse(message=data.message, response=groq_response)
+    #     await sv.save_queries(queryResponse, db, user.id)
 
-        redisClient.hset(hashset_name, data.message, groq_response)
+    #     redisClient.hset(hashset_name, data.message, groq_response)
         
-        return groq_response
+    #     return groq_response
