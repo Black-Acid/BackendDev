@@ -1,3 +1,4 @@
+import pika.exceptions
 from database import engine, sessionLocal, Base
 
 from sqlalchemy import orm
@@ -11,6 +12,7 @@ import models
 import jwt
 import pika
 import os
+import asyncio
 
 
 
@@ -124,18 +126,21 @@ async def save_queries(
         raise HTTPException(status_code=401, detail=f"Data could not saved due to {exception._message}")
 
 
-def get_response(message):
+async def get_response(message, channel, delivery_tag):
+    actual_message = message.split("|")
     chat_completion = client.chat.completions.create(
         messages=[
             {
                 "role": "user",
-                "content": message
+                "content": actual_message[1]
             }
         ],
         model = "llama-3.3-70b-versatile",
         stop=None,
         stream=False
     )
+    
+    channel.basic_ack(delivery_tag=delivery_tag)
     
     return chat_completion.choices[0].message.content
 
@@ -154,6 +159,34 @@ def push_to_rabbitmq(data: sma.RabbitMQPush):
     connection.close()
     
     
+    
+async def get_query():
+    connection = get_rabbitmq_connection()
+    channel = connection.channel()
+    
+    try:
+        queue = channel.queue_declare(queue=QUEUE_NAME, passive=True)
+        
+        message_count = queue.method.message_count
+        
+        if message_count:
+            tasks = []
+            
+            
+            
+            for _ in range(message_count):
+                method_frame, header_frame, body = channel.basic_get(queue=QUEUE_NAME)
+                
+                task = asyncio.create_task(get_response(body.decode(), channel, method_frame.delivery_tag))
+                
+                tasks.append(task)
+            
+            return await asyncio.gather(*tasks)
+    except pika.exceptions.ChannelClosedByBroker:
+        print("Queue cannnot be found")
+
+    finally:
+        connection.close()        
     
     
  

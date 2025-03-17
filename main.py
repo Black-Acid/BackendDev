@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import redis 
 import time
+import json
 
 
 load_dotenv()
@@ -46,7 +47,7 @@ async def login(form_data: security.OAuth2PasswordRequestForm = Depends(), db: o
 @app.post("/api/send-data")
 async def query(
     data: sma.UserQuery, 
-    user: sma.UserRequest = Depends(sv.get_current_user), 
+    user: sma.UserResponse = Depends(sv.get_current_user), 
     db: orm.Session = Depends(sv.get_db)
 ):
     
@@ -61,15 +62,31 @@ async def query(
         print("I got it from cache")
         return cache_response
     
-    # else:
-    #     # fetch the response from groq ai and save it into redis and display it
-    #     print("Naaa I got it from groq directly")
+    else:
+        
+        data_to_push = sma.RabbitMQPush(id=user.id, message=data.message)
+        sv.push_to_rabbitmq(data_to_push)
+        
+        response = await sv.get_query()
+        print(response)
+        redisClient.hset(hashset_name, data.message, json.dumps(response))
+        return response
         
         
-    #     #Convert the recieved data to an instance of the UserQueryResponse Schema
-    #     queryResponse = sma.UserQueryResponse(message=data.message, response=groq_response)
-    #     await sv.save_queries(queryResponse, db, user.id)
+        
+        
+        
+        
+        
+        
+        # # fetch the response from groq ai and save it into redis and display it
+        # print("Naaa I got it from groq directly")
+        
+        
+        # #Convert the recieved data to an instance of the UserQueryResponse Schema
+        # queryResponse = sma.UserQueryResponse(message=data.message, response=groq_response)
+        # await sv.save_queries(queryResponse, db, user.id)
 
-    #     redisClient.hset(hashset_name, data.message, groq_response)
+        # redisClient.hset(hashset_name, data.message, groq_response)
         
-    #     return groq_response
+        # return groq_response
