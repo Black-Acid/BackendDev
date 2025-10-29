@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, security, Depends
 from passlib.context import CryptContext
 from groq import Groq
+from openai import OpenAI
 
 import schemas as sma
 import models
@@ -15,10 +16,68 @@ import os
 import asyncio
 
 
+# packages for the vector database and AI
+from pathlib import Path
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.prompts import PromptTemplate
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+
+
+
+# loader = PyPDFLoader("theBook.pdf")
+# documents = loader.load()
+
+# splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+# docs = splitter.split_documents(documents)
+
+# embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+# vectorstore = FAISS.from_documents(docs, embeddings)
+
+# vectorstore.save_local("theBook_faiss_index")
+
+
+# Load FAISS index
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+
+vectorstore = FAISS.load_local(
+    "theBook_faiss_index",
+    embeddings,
+    allow_dangerous_deserialization=True
+)
+
+retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+
+
+# Template for generating patient questions
+prompt_template = """You are a pharmacy assistant AI.
+    Your job is to ask follow-up questions to the patient before recommending medication.
+
+    Use the following section of the pharmacology guide as your reference.
+    Ask only relevant diagnostic or clarification questions — do not provide any answers or drug names yet.
+
+    Context from book:
+    {context}
+
+    Patient symptom:
+    {symptom}
+
+    Generate 3 questions you would ask next:
+    """
+
+prompt = PromptTemplate(template=prompt_template, input_variables=["context", "symptom"])
+
+
 
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY"),
 )
+gpt_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 RABBITMQ_HOST = "localhost"
 QUEUE_NAME = "user_messages"
@@ -126,13 +185,13 @@ async def save_queries(
         raise HTTPException(status_code=401, detail=f"Data could not saved due to {exception._message}")
 
 
-async def get_response(message, channel, delivery_tag):
-    actual_message = message.split("|")
+async def get_response(message):
+    # actual_message = message.split("|")
     chat_completion = client.chat.completions.create(
         messages=[
             {
                 "role": "user",
-                "content": actual_message[1]
+                "content": message
             }
         ],
         model = "llama-3.3-70b-versatile",
@@ -140,10 +199,28 @@ async def get_response(message, channel, delivery_tag):
         stream=False
     )
     
-    channel.basic_ack(delivery_tag=delivery_tag)
+    
     
     return chat_completion.choices[0].message.content
 
+
+async def get_response2(message: str):
+    
+    docs = await retriever.ainvoke(message)  # ✅ async-safe and works with new LangChain
+    context = "\n\n".join([d.page_content for d in docs])
+    formatted_prompt = prompt.format(context=context, symptom=message)
+
+    
+    
+    chat_completion = gpt_client.chat.completions.create(
+        model="gpt-4o-mini",  # or "gpt-4o" if you prefer full GPT-4
+        messages=[
+            {"role": "system", "content": "You are a pharmacy assistant who asks intelligent, medically correct diagnostic questions based on the provided pharmacology guide."},
+            {"role": "user", "content": formatted_prompt}
+        ]
+    )
+    print("fetching response from gpt")
+    return chat_completion.choices[0].message.content
 
 def get_rabbitmq_connection():
     return pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
@@ -189,4 +266,4 @@ async def get_query():
         connection.close()        
     
     
- 
+# giving the book to gpt 4o mini as a reference point to study 
