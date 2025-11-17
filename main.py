@@ -98,21 +98,30 @@ from dotenv import load_dotenv
 import redis
 import json
 import uvicorn
+from contextlib import asynccontextmanager
 
 load_dotenv()
 import services as sv
 
 
 
-
 redisClient = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
-app = FastAPI()
+
+
+    
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # This runs at startup
+    sv.initialize_services()
+    yield
+    # Here you could add shutdown logic if needed
+
+app = FastAPI(lifespan=lifespan)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
 
 @app.post("/api/register-user/")
 async def register_user(user: sma.UserRequest, db: orm.Session = Depends(sv.get_db)):

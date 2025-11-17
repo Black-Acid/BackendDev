@@ -18,34 +18,58 @@ import asyncio
 
 # packages for the vector database and AI
 from pathlib import Path
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
 
 
 
-
-
 # Load FAISS index
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+# embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+# @app.on_event("startup")
+# async def load_models():
+#     global embeddings, faiss_index
+    
+#     # Import heavy libraries here
+#     from langchain_community.embeddings import HuggingFaceEmbeddings
+#     from langchain_community.vectorstores import FAISS
+#     from langchain_community.document_loaders import PyPDFLoader, TextLoader
+#     from langchain_text_splitters import RecursiveCharacterTextSplitter
+#     from langchain_core.prompts import PromptTemplate
+#     from langchain_core.output_parsers import StrOutputParser
+#     from langchain_openai import ChatOpenAI
+#     from langchain_community.embeddings import OpenAIEmbeddings
+
+#     # Initialize your embeddings
+#     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    
+#     # Optionally, load FAISS index here if needed
+#     # faiss_index = FAISS.load_local("your_index_path", embeddings)
 
 
-vectorstore = FAISS.load_local(
-    "theBook_faiss_index",
-    embeddings,
-    allow_dangerous_deserialization=True
-)
-
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+embeddings = None
+vectorstore = None
+retriever = None
 
 
-print("Retriever type:", type(retriever))
+
+def initialize_services():
+    global embeddings, vectorstore, retriever
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+
+    vectorstore = FAISS.load_local(
+        "theBook_faiss_index",
+        embeddings,
+        allow_dangerous_deserialization=True
+    )
+
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+
+
 
 
 
@@ -67,84 +91,7 @@ import re
 
 user_sessions = {}
 
-# async def handle_conversation(user_id: str, message: str, retriever):
-#     session = user_sessions.get(user_id)
 
-#     # If this is a new conversation
-#     if session is None:
-#         # Fetch relevant docs using retriever
-#         docs = retriever.invoke(message)
-
-#         # Combine retrieved text
-#         context = "\n\n".join([
-#             d.page_content for d in docs
-#             if hasattr(d, "page_content") and isinstance(d.page_content, str)
-#         ])
-
-#         # Prompt template
-#         prompt_template = """You are a pharmacy assistant AI.
-#             Your job is to ask follow-up questions to the patient before recommending medication.
-
-#             Use the following section of the pharmacology guide as your reference.
-#             Ask only relevant diagnostic or clarification questions — do not provide any answers or drug names yet.
-
-#             Context from book:
-#             {context}
-
-#             Patient symptom:
-#             {symptom}
-
-#             Generate all the relevant diagnostic and clarification questions you would need to accurately understand the patient's condition before recommending treatment:
-#             """
-
-#         # Prepare final prompt
-#         prompt = prompt_template.format(context=context, symptom=message)
-
-#         # Call ChatGPT 4o-mini directly (async)
-#         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.4)
-#         response = await llm.ainvoke(prompt)
-
-#         # Extract text
-#         questions_text = response.content.strip()
-
-#         # Split questions line by line
-#         lines = [line.strip() for line in questions_text.split("\n") if len(line.strip()) > 8]
-#         questions = [q for q in lines if q.endswith("?")]
-
-#         if not questions:
-#             return "Sorry, I couldn’t find relevant diagnostic questions for that symptom."
-
-#         # Save conversation state
-#         user_sessions[user_id] = {
-#             "current_question": 0,
-#             "questions": questions,
-#             "answers": []
-#         }
-
-#         # Return first question
-#         return f"Okay, let's start with a few questions.\n{questions[0]}"
-
-#     # If user is answering
-#     else:
-#         session["answers"].append(message)
-#         session["current_question"] += 1
-
-#         if session["current_question"] < len(session["questions"]):
-#             next_q = session["questions"][session["current_question"]]
-#             return next_q
-
-#         # All questions answered
-#         summary = "\n".join(
-#             f"Q{i+1}: {q}\nA: {a}"
-#             for i, (q, a) in enumerate(zip(session["questions"], session["answers"]))
-#         )
-
-#         del user_sessions[user_id]
-
-#         return (
-#             f"Thanks for your responses. Here's a summary:\n\n{summary}\n\n"
-#             "I’ll now analyze this and forward it to the pharmacist for a suitable recommendation."
-#         )
 from typing import Optional
 
 # Optional: if you want LLM fallback, set USE_LLM_FALLBACK = True and provide `llm_call` function.
@@ -271,70 +218,7 @@ def detect_intent(message: str, last_assistant_question: Optional[str] = None, h
     return "chat"
 
 
-# def detect_intent(message: str, last_assistant_question: Optional[str] = None, history: str = "") -> str:
-#     """
-#     Returns one of:
-#     - "answer"
-#     - "new_symptom"
-#     - "request_help"
-#     - "change_topic"
-#     - "chat"
-#     """
-#     msg = message.strip()
-#     if not msg:
-#         return "chat"
 
-#     lower = msg.lower()
-
-#     # 1) Strong keyword checks (non-answer)
-#     if _contains_any(lower, REQUEST_HELP_KEYWORDS):
-#         return "request_help"
-#     if _contains_any(lower, CHANGE_TOPIC_KEYWORDS):
-#         return "change_topic"
-#     if _contains_any(lower, NEW_SYMPTOM_KEYWORDS):
-#         return "new_symptom"
-
-#     # 2) If the user directly asks a question (likely they changed topic)
-#     if msg.endswith("?"):
-#         # If the question repeats the assistant's last question, treat as answer attempt
-#         if last_assistant_question and msg.lower() == last_assistant_question.strip().lower():
-#             return "answer"
-#         return "chat"
-
-#     # 3) Very short single-word or short phrases -> likely quick answers (yes/no, short counts)
-#     tokens = msg.split()
-#     if len(tokens) <= 4:
-#         # If short token is clearly a yes/no or numeric answer, treat as answer
-#         token0 = tokens[0].lower().strip(".,!?")
-#         if token0 in YES_NO_SHORT:
-#             return "answer"
-#         # numeric responses (e.g., "2 days", "3", "two")
-#         if re.match(r"^\d+$", token0) or re.match(r"^\d+(?:\.\d+)?(days|day|hrs|hours|weeks)?$", lower) or re.match(r"^(one|two|three|four|five|six|seven|eight|nine|ten)$", token0):
-#             return "answer"
-#         # short "I’m tired" type: check change-topic list
-#         if _contains_any(lower, CHANGE_TOPIC_KEYWORDS):
-#             return "change_topic"
-
-#     # 4) If last assistant question exists, check semantic fit: does the message answer that question (heuristic)
-#     if last_assistant_question:
-#         la = last_assistant_question.lower()
-#         # if last question asked for duration and user says X days/hours -> answer
-#         if re.search(r"(how long|when did|duration|since when)", la) and re.search(r"\b(days?|hours?|weeks?|months?)\b", lower):
-#             return "answer"
-#         # if last question asked yes/no style (starts with "do", "did", "is", "are", "have") and message short -> answer
-#         if re.match(r'^(do|did|is|are|have|has|can|could|should|was|were)\b', la.strip()):
-#             if len(tokens) <= 6:
-#                 return "answer"
-
-#     # 5) Heuristic fallback: if message contains many words and a sentence, treat as chat/new_symptom
-#     if len(tokens) > 8:
-#         # If it reads like adding another symptom: "I also have chest pain and shortness of breath"
-#         if _contains_any(lower, ["i also have", "also have", "and also", "also experiencing", "another symptom", "besides that"]):
-#             return "new_symptom"
-#         return "chat"
-
-#     # 6) Final fallback: treat as answer (conservative)
-#     return "answer"
 
 
 # Optional LLM fallback (not enabled by default)
@@ -484,197 +368,6 @@ async def handle_conversation(user_id: str, message: str, retriever):
             return f"{ai_reply}\n\nAnyway, let;s continue:\n{next_q}"
         else:
             return ai_reply
-
-# async def handle_conversation(user_id: str, message: str, retriever):
-#     session = user_sessions.get(user_id)
-
-#     # Build conversation history for context
-#     history = ""
-#     if session:
-#         history = "\n".join(
-#             f"Q{i+1}: {q}\nA: {a}"
-#             for i, (q, a) in enumerate(zip(session["questions"], session["answers"]))
-#         )
-
-#     # Get the last assistant question (if any)
-#     last_question = None
-#     if session and session["current_question"] < len(session["questions"]):
-#         last_question = session["questions"][session["current_question"]]
-
-#     # --- Detect intent ---
-#     intent = detect_intent(message, last_question, history)
-#     print(f"[Intent detected: {intent}]")
-
-#     # --- CASE 1: NEW CONVERSATION OR NEW SYMPTOM ---
-#     if session is None or intent == "new_symptom":
-#         docs = retriever.invoke(message)
-#         context = "\n\n".join([
-#             d.page_content for d in docs
-#             if hasattr(d, "page_content") and isinstance(d.page_content, str)
-#         ])
-
-#         prompt_template = """You are a pharmacy assistant AI.
-#         Your job is to ask follow-up questions to the patient before recommending medication.
-
-#         Use the following section of the pharmacology guide as your reference.
-#         Ask only relevant diagnostic or clarification questions — do not provide any answers or drug names yet.
-
-#         Context from book:
-#         {context}
-
-#         Patient symptom:
-#         {symptom}
-
-#         Generate all the relevant diagnostic and clarification questions you would need to accurately understand the patient's condition before recommending treatment:
-#         """
-
-#         prompt = PromptTemplate(template=prompt_template, input_variables=["context", "symptom"])
-#         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.4)
-
-#         result = await llm.ainvoke(prompt.format(context=context, symptom=message))
-#         questions_text = result.content if hasattr(result, "content") else str(result)
-
-#         lines = [line.strip() for line in questions_text.split("\n") if len(line.strip()) > 8]
-#         questions = [q for q in lines if q.endswith("?")]
-
-#         if not questions:
-#             return "Sorry, I couldn’t find relevant diagnostic questions for that symptom."
-
-#         user_sessions[user_id] = {
-#             "current_question": 0,
-#             "questions": questions,
-#             "answers": []
-#         }
-
-#         return f"Okay, let's start with a few questions.\n{questions[0]}"
-
-#     # --- CASE 2: USER IS ANSWERING ---
-#     elif intent == "answer" and session:
-#         session["answers"].append(message)
-#         session["current_question"] += 1
-
-#         if session["current_question"] < len(session["questions"]):
-#             next_q = session["questions"][session["current_question"]]
-#             return next_q
-#         else:
-#             summary = "\n".join(
-#                 f"Q{i+1}: {q}\nA: {a}"
-#                 for i, (q, a) in enumerate(zip(session["questions"], session["answers"]))
-#             )
-#             del user_sessions[user_id]
-#             return (
-#                 f"Thanks for your responses. Here's a summary:\n\n{summary}\n\n"
-#                 "I’ll now analyze this and forward it to the pharmacist for a suitable recommendation."
-#             )
-
-#     # --- CASE 3: USER REQUESTS PHARMACIST ---
-#     elif intent == "request_help":
-#         if user_id in user_sessions:
-#             del user_sessions[user_id]
-#         return "Okay, I’ll connect you to a pharmacist now for further assistance."
-
-#     # --- CASE 4: USER CHANGES TOPIC ---
-#     elif intent == "change_topic":
-#         if user_id in user_sessions:
-#             del user_sessions[user_id]
-#         return "Sure, we can stop here. What would you like to discuss instead?"
-
-#     # --- CASE 5: CASUAL CHAT ---
-#     else:
-#         return "Haha, I get you! But let's stay focused for a bit — could you tell me more about your symptoms?"
-
-
-# async def handle_conversation(user_id: str, message: str, retriever):
-#     session = user_sessions.get(user_id)
-
-#     # Build conversation history for context
-#     history = ""
-#     if session:
-#         history = "\n".join(
-#             f"Q{i+1}: {q}\nA: {a}"
-#             for i, (q, a) in enumerate(zip(session["questions"], session["answers"]))
-#         )
-
-#     # 🔹 Detect user intent first
-#     intent = detect_intent(message, history)
-#     print(f"[Intent detected: {intent}]")
-
-#     # --- CASE 1: NEW CONVERSATION OR NEW SYMPTOM ---
-#     if session is None or intent == "new_symptom":
-#         docs = retriever.invoke(message)
-#         context = "\n\n".join([
-#             d.page_content for d in docs
-#             if hasattr(d, "page_content") and isinstance(d.page_content, str)
-#         ])
-
-#         prompt_template = """You are a pharmacy assistant AI.
-#         Your job is to ask follow-up questions to the patient before recommending medication.
-
-#         Use the following section of the pharmacology guide as your reference.
-#         Ask only relevant diagnostic or clarification questions — do not provide any answers or drug names yet.
-
-#         Context from book:
-#         {context}
-
-#         Patient symptom:
-#         {symptom}
-
-#         Generate all the relevant diagnostic and clarification questions you would need to accurately understand the patient's condition before recommending treatment:
-#         """
-
-#         prompt = PromptTemplate(template=prompt_template, input_variables=["context", "symptom"])
-#         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.4)
-
-#         result = await llm.ainvoke(prompt.format(context=context, symptom=message))
-#         questions_text = result.content if hasattr(result, "content") else str(result)
-
-#         lines = [line.strip() for line in questions_text.split("\n") if len(line.strip()) > 8]
-#         questions = [q for q in lines if q.endswith("?")]
-
-#         if not questions:
-#             return "Sorry, I couldn’t find relevant diagnostic questions for that symptom."
-
-#         user_sessions[user_id] = {
-#             "current_question": 0,
-#             "questions": questions,
-#             "answers": []
-#         }
-
-#         return f"Okay, let's start with a few questions.\n{questions[0]}"
-
-#     # --- CASE 2: USER IS ANSWERING ---
-#     elif intent == "answer" and session:
-#         session["answers"].append(message)
-#         session["current_question"] += 1
-
-#         if session["current_question"] < len(session["questions"]):
-#             return session["questions"][session["current_question"]]
-#         else:
-#             summary = "\n".join(
-#                 f"Q{i+1}: {q}\nA: {a}"
-#                 for i, (q, a) in enumerate(zip(session["questions"], session["answers"]))
-#             )
-#             del user_sessions[user_id]
-#             return (
-#                 f"Thanks for your responses. Here's a summary:\n\n{summary}\n\n"
-#                 "I’ll now analyze this and forward it to the pharmacist for a suitable recommendation."
-#             )
-
-#     # --- CASE 3: USER REQUESTS PHARMACIST ---
-#     elif intent == "request_help":
-#         if user_id in user_sessions:
-#             del user_sessions[user_id]
-#         return "Okay, I’ll connect you to a pharmacist now for further assistance."
-
-#     # --- CASE 4: USER CHANGES TOPIC ---
-#     elif intent == "change_topic":
-#         if user_id in user_sessions:
-#             del user_sessions[user_id]
-#         return "Sure, we can stop here. What would you like to discuss instead?"
-
-#     # --- CASE 5: CASUAL CHAT ---
-#     else:
-#         return "Haha, I get you! But let's stay focused for a bit — could you tell me more about your symptoms?"
 
 
 
