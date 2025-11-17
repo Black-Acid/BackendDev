@@ -97,13 +97,22 @@ import os
 from dotenv import load_dotenv
 import redis
 import json
+import uvicorn
 
 load_dotenv()
 import services as sv
 
+
+
+
 redisClient = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 app = FastAPI()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
 
 @app.post("/api/register-user/")
 async def register_user(user: sma.UserRequest, db: orm.Session = Depends(sv.get_db)):
