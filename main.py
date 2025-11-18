@@ -23,7 +23,9 @@ import services as sv
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This runs at startup
+    print("Starting services...")
     sv.initialize_services()
+    print("Services started!")
     yield
     # Here you could add shutdown logic if needed
 
@@ -116,5 +118,9 @@ async def query(
 
 
 if __name__ == "__main__":
+    print("Running as __main__...")   # DEBUG
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    print("Starting server on port:", port)   # DEBUG
+    uvicorn.run(app, host="0.0.0.0", port=port)
+    
+print("File executed as main:", __name__)
