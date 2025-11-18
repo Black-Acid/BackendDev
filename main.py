@@ -29,9 +29,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+
 
 @app.post("/api/register-user/")
 async def register_user(user: sma.UserRequest, db: orm.Session = Depends(sv.get_db)):
@@ -115,3 +113,8 @@ async def query(
     await sv.save_queries(queryResponse, db, user.id)
 
     return {"response": response}
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
