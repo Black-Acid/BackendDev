@@ -602,6 +602,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
+import psutil
 
 
 
@@ -615,12 +616,15 @@ retriever = None
 services_initialized = False  # flag to avoid re-loading
 
 
+embeddings = None
+vectorstore = None
+retriever = None
+services_initialized = False  # flag to avoid re-loading
+
+
 async def initialize_services():
     """
     Lazy-load embeddings, FAISS index and retriever in a memory-friendly way.
-    - Loads embeddings and FAISS in background threads (so event loop isn't blocked).
-    - Creates retriever only once.
-    - Idempotent: will return quickly if services already initialized.
     """
     global embeddings, vectorstore, retriever, services_initialized
 
@@ -629,13 +633,11 @@ async def initialize_services():
 
     print("⏳ Lazy-loading embeddings + FAISS (this may take a while)...")
 
-    # Load embeddings inside a thread worker (instantiation can be heavy)
+    # lightweight embedding for our use-case
     embeddings = await asyncio.to_thread(
-        lambda: HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        lambda: HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
     )
 
-    # Load FAISS index in a thread worker.
-    # Using lambda ensures the load runs inside the thread (not before scheduling).
     vectorstore = await asyncio.to_thread(
         lambda: FAISS.load_local(
             "theBook_faiss_index",
@@ -644,20 +646,15 @@ async def initialize_services():
         )
     )
 
-    # as_retriever is lightweight — run it on the main thread.
-    # If this ever becomes expensive for you, move it into a thread too.
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-
     services_initialized = True
     print("✅ Services initialized (embeddings + FAISS + retriever)")
 
 
 async def get_retriever():
-    """
-    Helper to ensure services are initialized and return the retriever.
-    """
     await initialize_services()
     return retriever
+
 
 
 
@@ -1198,3 +1195,6 @@ from transformers import pipeline
 
 
 intent_model = pipeline("text2text-generation", model="google/flan-t5-small")
+
+process = psutil.Process(os.getpid())
+print(f"[FINAL MEMORY] Memory used: {process.memory_info().rss / 1024 ** 2:.2f} MB")
