@@ -1,5 +1,4 @@
 
-
 from fastapi import Depends, FastAPI, HTTPException, security
 import schemas as sma
 from sqlalchemy import orm
@@ -29,10 +28,13 @@ async def lifespan(app: FastAPI):
     yield  # here the app starts serving requests
     # This runs on shutdown (optional cleanup)
     print("Shutting down...")
-
+    
 app = FastAPI(lifespan=lifespan)
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 
 @app.post("/api/register-user/")
