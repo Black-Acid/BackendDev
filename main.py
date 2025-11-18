@@ -9,6 +9,7 @@ import redis
 import json
 import uvicorn
 from contextlib import asynccontextmanager
+import asyncio
 
 load_dotenv()
 import services as sv
@@ -18,18 +19,19 @@ import services as sv
 # redisClient = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 
-
     
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # This runs at startup
-    print("Starting services...")
-    sv.initialize_services()
-    print("Services started!")
-    yield
-    # Here you could add shutdown logic if needed
+    # This runs **before the server starts listening**
+    print("Starting up: initializing embeddings and vectorstore...")
+    await asyncio.to_thread(sv.initialize_services)  # run blocking code safely
+    print("Initialization complete!")
+    yield  # here the app starts serving requests
+    # This runs on shutdown (optional cleanup)
+    print("Shutting down...")
 
 app = FastAPI(lifespan=lifespan)
+
 
 
 

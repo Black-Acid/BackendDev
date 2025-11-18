@@ -26,47 +26,32 @@ from langchain_openai import ChatOpenAI
 
 
 
-# Load FAISS index
-# embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-# @app.on_event("startup")
-# async def load_models():
-#     global embeddings, faiss_index
-    
-#     # Import heavy libraries here
-#     from langchain_community.embeddings import HuggingFaceEmbeddings
-#     from langchain_community.vectorstores import FAISS
-#     from langchain_community.document_loaders import PyPDFLoader, TextLoader
-#     from langchain_text_splitters import RecursiveCharacterTextSplitter
-#     from langchain_core.prompts import PromptTemplate
-#     from langchain_core.output_parsers import StrOutputParser
-#     from langchain_openai import ChatOpenAI
-#     from langchain_community.embeddings import OpenAIEmbeddings
-
-#     # Initialize your embeddings
-#     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    
-#     # Optionally, load FAISS index here if needed
-#     # faiss_index = FAISS.load_local("your_index_path", embeddings)
-
-
 embeddings = None
 vectorstore = None
 retriever = None
 
 
 
-def initialize_services():
+async def initialize_services():
     global embeddings, vectorstore, retriever
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    
+    # Heavy synchronous loading wrapped in async
+    embeddings = await asyncio.to_thread(
+        HuggingFaceEmbeddings, model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
 
-
-    vectorstore = FAISS.load_local(
+    vectorstore = await asyncio.to_thread(
+        FAISS.load_local,
         "theBook_faiss_index",
         embeddings,
         allow_dangerous_deserialization=True
     )
 
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+    retriever = await asyncio.to_thread(
+        vectorstore.as_retriever,
+        search_kwargs={"k": 3}
+    )
+    print("✅ Services initialized asynchronously")
 
 
 
