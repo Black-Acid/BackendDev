@@ -121,10 +121,10 @@ async def query(
     return {"response": response}
 
 
-# if __name__ == "__main__":
-#     print("Running as __main__...")   # DEBUG
-#     port = int(os.environ.get("PORT", 8000))
-#     print("Starting server on port:", port)   # DEBUG
-#     uvicorn.run(app, host="0.0.0.0", port=port)
+if __name__ == "__main__":
+    print("Running as __main__...")   # DEBUG
+    port = int(os.environ.get("PORT", 8000))
+    print("Starting server on port:", port)   # DEBUG
+    uvicorn.run(app, host="0.0.0.0", port=8080)
     
 print("File executed as main:", __name__)
