@@ -527,48 +527,48 @@ async def get_response2(message: str):
     print("fetching response from gpt")
     return chat_completion.choices[0].message.content
 
-def get_rabbitmq_connection():
-    return pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+# def get_rabbitmq_connection():
+#     return pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
 
-def push_to_rabbitmq(data: sma.RabbitMQPush):
-    connection = get_rabbitmq_connection()
-    channel = connection.channel()
-    channel.queue_declare(queue=QUEUE_NAME)
-    final_message = f"{data.id}|{data.message}"
+# def push_to_rabbitmq(data: sma.RabbitMQPush):
+#     connection = get_rabbitmq_connection()
+#     channel = connection.channel()
+#     channel.queue_declare(queue=QUEUE_NAME)
+#     final_message = f"{data.id}|{data.message}"
     
-    # Push the data
-    channel.basic_publish(exchange="", routing_key=QUEUE_NAME, body=final_message)
-    connection.close()
+#     # Push the data
+#     channel.basic_publish(exchange="", routing_key=QUEUE_NAME, body=final_message)
+#     connection.close()
     
     
     
-async def get_query():
-    connection = get_rabbitmq_connection()
-    channel = connection.channel()
+# async def get_query():
+#     connection = get_rabbitmq_connection()
+#     channel = connection.channel()
     
-    try:
-        queue = channel.queue_declare(queue=QUEUE_NAME, passive=True)
+#     try:
+#         queue = channel.queue_declare(queue=QUEUE_NAME, passive=True)
         
-        message_count = queue.method.message_count
+#         message_count = queue.method.message_count
         
-        if message_count:
-            tasks = []
+#         if message_count:
+#             tasks = []
             
             
             
-            for _ in range(message_count):
-                method_frame, header_frame, body = channel.basic_get(queue=QUEUE_NAME)
+#             for _ in range(message_count):
+#                 method_frame, header_frame, body = channel.basic_get(queue=QUEUE_NAME)
                 
-                task = asyncio.create_task(get_response(body.decode(), channel, method_frame.delivery_tag))
+#                 task = asyncio.create_task(get_response(body.decode(), channel, method_frame.delivery_tag))
                 
-                tasks.append(task)
+#                 tasks.append(task)
             
-            return await asyncio.gather(*tasks)
-    except pika.exceptions.ChannelClosedByBroker:
-        print("Queue cannnot be found")
+#             return await asyncio.gather(*tasks)
+#     except pika.exceptions.ChannelClosedByBroker:
+#         print("Queue cannnot be found")
 
-    finally:
-        connection.close()        
+#     finally:
+#         connection.close()        
     
     
 from transformers import pipeline
