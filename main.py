@@ -1,4 +1,4 @@
-
+print("I'm in my main.py file")
 from fastapi import Depends, FastAPI, HTTPException, security
 import schemas as sma
 from sqlalchemy import orm
