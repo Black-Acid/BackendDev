@@ -1,4 +1,10 @@
-print("I'm in my main.py file")
+import logging
+
+logging.basicConfig(level=logging.INFO)  # INFO, DEBUG, WARNING, ERROR
+logger = logging.getLogger(__name__)
+
+logger.info("I have found my main.py")
+
 from fastapi import Depends, FastAPI, HTTPException, security
 import schemas as sma
 from sqlalchemy import orm
@@ -118,7 +124,7 @@ async def query(
 
     return {"response": response}
 
-
+logger.info("I'm about to enter the if block")
 if __name__ == "__main__":
     print("Running as __main__...")   # DEBUG
     port = int(os.environ.get("PORT", 8000))
