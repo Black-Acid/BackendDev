@@ -4,8 +4,6 @@ import schemas as sma
 from sqlalchemy import orm
 import os
 from dotenv import load_dotenv
-import redis
-import json
 import uvicorn
 from contextlib import asynccontextmanager
 import asyncio
