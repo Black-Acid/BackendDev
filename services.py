@@ -578,7 +578,6 @@
 
 
 
-import pika.exceptions
 from database import engine, sessionLocal, Base
 
 from sqlalchemy import orm
@@ -591,13 +590,11 @@ from openai import OpenAI
 import schemas as sma
 import models
 import jwt
-import pika
 import os
 import asyncio
 
 
 # packages for the vector database and AI
-from pathlib import Path
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -648,7 +645,7 @@ async def initialize_services():
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
     services_initialized = True
-    print("✅ Services initialized (embeddings + FAISS + retriever)")
+    print(" Services initialized (embeddings + FAISS + retriever)")
 
 
 async def get_retriever():

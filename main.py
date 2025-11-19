@@ -125,6 +125,6 @@ if __name__ == "__main__":
     print("Running as __main__...")   # DEBUG
     port = int(os.environ.get("PORT", 8000))
     print("Starting server on port:", port)   # DEBUG
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT")))
     
 print("File executed as main:", __name__)
